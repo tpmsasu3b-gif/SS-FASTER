@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#DC2626">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Aplikasi Manajemen Stok P3K dengan sinkronisasi Google Sheets">
+    <title>P3K Stock Manager - Google Sheets Sync</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="data:application/json;base64,eyJzaG9ydF9uYW1lIjoiUDNLIFN0b2NrIiwibmFtZSI6IlAzSyBTdG9jayBNYW5hZ2VyIiwiZGVzY3JpcHRpb24iOiJBcGxpa2FzaSBNYW5hamVtZW4gU3RvayBQM0sgdGVyaW50ZWdyYXNpIEdvb2dsZSBTaGVldHMiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI2ZmZmZmZiIsInRoZW1lX2NvbG9yIjoiI0RDMjYyNiIsIm9yaWVudGF0aW9uIjoicG9ydHJhaXQiLCJpY29ucyI6W3sic3JjIjoiaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL3R3ZW1vamlAdHdlbW9qaUAxNS4wLjIvYXNzZXRzL3N2Zy8yNzY0LnN2ZyIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIn1dfQ==">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        :root {
+            --primary: #DC2626;
+            --primary-dark: #991B1B;
+            --primary-light: #FCA5A5;
+            --secondary: #059669;
+            --warning: #D97706;
+            --danger: #EF4444;
+            --info: #3B82F6;
+            --gray-50: #F9FAFB;
+            --gray-100: #F3F4F6;
+            --gray-200: #E5E7EB;
+            --gray-300: #D1D5DB;
+            --gray-600: #4B5563;
+            --gray-800: #1F2937;
+            --gray-900: #111827;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            --radius: 16px;
+            --radius-sm: 8px;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            line-height: 1.5;
+            overflow-x: hidden;
+            padding-bottom: calc(80px + var(--safe-bottom));
+        }
+        
+        /* Header */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: calc(20px + var(--safe-top)) 20px 30px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+        
+        .header-content {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.15);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sync-status.syncing {
+            animation: pulse 1.5s infinite;
+        }
+        
+        .sync-status.online { background: rgba(5, 150, 105, 0.3); }
+        .sync-status.offline { background: rgba(239, 68, 68, 0.3); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 15px 10px;
+            border-radius: var(--radius);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .stat-number {
+            font-size: 28px;
+            font-weight: 800;
+            display: block;
+            line-height: 1;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            opacity: 0.9;
+            margin-top: 4px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Connection Settings */
+        .settings-card {
+            background: white;
+            margin: 20px;
+            padding: 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .settings-title {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .form-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--gray-100);
+            color: var(--gray-800);
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .connection-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--gray-50);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--gray-600);
+        }
+        
+        /* Content Container */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0 20px 20px;
+        }
+        
+        /* Section Headers */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 30px 0 15px;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gray-800);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-light);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .add-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+        }
+        
+        .add-btn:active {
+            transform: scale(0.9);
+        }
+        
+        /* Alert Banner */
+        .alert-banner {
+            background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+            border-left: 4px solid var(--warning);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .alert-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        
+        .alert-content {
+            flex: 1;
+        }
+        
+        .alert-title {
+            font-weight: 700;
+            color: var(--gray-800);
+            font-size: 14px;
+        }
+        
+        .alert-text {
+            font-size: 13px;
+            color: var(--gray-600);
+            margin-top: 2px;
+        }
+        
+        /* Inventory Grid */
+        .inventory-grid {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .item-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--gray-100);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .item-card:active {
+            transform: scale(0.98);
+        }
+        
+        .item-card.expired { border-left: 4px solid var(--danger); }
+        .item-card.expiring { border-left: 4px solid var(--warning); }
+        .item-card.good { border-left: 4px solid var(--secondary); }
+        
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .item-info {
+            flex: 1;
+        }
+        
+        .item-name {
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--gray-900);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .item-category {
+            display: inline-block;
+            padding: 4px 10px;
+            background: var(--gray-100);
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .item-quantity {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--gray-50);
+            padding: 8px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--gray-200);
+        }
+        
+        .qty-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: white;
+            border-radius: 50%;
+            font-weight: 700;
+            color: var(--gray-800);
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .qty-btn:active {
+            background: var(--gray-100);
+        }
+        
+        .qty-value {
+            font-weight: 700;
+            min-width: 24px;
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .item-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--gray-100);
+        }
+        
+        .expiry-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+        
+        .expiry-badge.expired { background: #FEE2E2; color: var(--danger); }
+        .expiry-badge.expiring { background: #FEF3C7; color: var(--warning); }
+        .expiry-badge.good { background: #D1FAE5; color: var(--secondary); }
+        
+        .item-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--gray-600);
+            transition: all 0.2s;
+        }
+        
+        .icon-btn:hover {
+            background: var(--gray-100);
+        }
+        
+        .icon-btn.delete:hover {
+            background: #FEE2E2;
+            color: var(--danger);
+        }
+        
+        .icon-btn.sync {
+            color: var(--info);
+        }
+        
+        .icon-btn.sync:hover {
+            background: #DBEAFE;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray-600);
+        }
+        
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .empty-title {
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: var(--gray-800);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+        
+        .modal {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            border-radius: var(--radius) var(--radius) 0 0;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: var(--gray-100);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--gray-700);
+            font-size: 14px;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
+            background: var(--primary-dark);
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: calc(100px + var(--safe-bottom));
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--gray-900);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 2000;
+            opacity: 0;
+            transition: all 0.3s;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        .toast.success { background: var(--secondary); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .loading-overlay.active {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--gray-200);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid var(--gray-200);
+            padding: 10px 20px calc(10px + var(--safe-bottom));
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            z-index: 99;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px;
+            border: none;
+            background: none;
+            color: var(--gray-600);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 12px;
+        }
+        
+        .nav-item.active {
+            color: var(--primary);
+            background: rgba(220, 38, 38, 0.1);
+        }
+        
+        .nav-icon {
+            font-size: 24px;
+            line-height: 1;
+        }
+        
+        /* Hide sections */
+        .section {
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Install Prompt */
+        .install-prompt {
+            position: fixed;
+            bottom: calc(90px + var(--safe-bottom));
+            left: 20px;
+            right: 20px;
+            background: white;
+            padding: 16px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            display: none;
+            align-items: center;
+            gap: 15px;
+            z-index: 98;
+            border: 1px solid var(--gray-200);
+        }
+        
+        .install-prompt.show {
+            display: flex;
+            animation: slideUp 0.3s;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .install-icon {
+            width: 50px;
+            height: 50px;
+            background: var(--primary);
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+        
+        .install-text {
+            flex: 1;
+        }
+        
+        .install-title {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .install-desc {
+            font-size: 13px;
+            color: var(--gray-600);
+            margin-top: 2px;
+        }
+        
+        .install-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        
+        .install-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--gray-400);
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Tutorial Card */
+        .tutorial-card {
+            background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);
+            border: 1px solid #93C5FD;
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .tutorial-title {
+            font-weight: 700;
+            color: #1E40AF;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tutorial-step {
+            font-size: 13px;
+            color: #1E40AF;
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .tutorial-step::before {
+            content: '•';
+            position: absolute;
+            left: 8px;
+            font-weight: bold;
+        }
+        
+        .code-block {
+            background: #1E293B;
+            color: #E2E8F0;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p style="color: var(--gray-600); font-weight: 600;">Menyinkronkan dengan Google Sheets...</p>
+    </div>
+
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="header-content">
+            <div class="header-top">
+                <div class="logo">
+                    <div class="logo-icon">🚑</div>
+                    <span>P3K Stock Manager</span>
+                </div>
+                <div id="syncStatus" class="sync-status offline">
+                    <span id="syncIcon">⚠️</span>
+                    <span id="syncText">Offline</span>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <span class="stat-number" id="totalItems">0</span>
+                    <span class="stat-label">Total Item</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="expiringItems">0</span>
+                    <span class="stat-label">Akan Expired</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="expiredItems">0</span>
+                    <span class="stat-label">Expired</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        
+        <!-- Settings Section -->
+        <section id="settingsSection" class="section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="section-icon" style="background: #DBEAFE;">⚙️</span>
+                    Koneksi Google Sheets
+                </h2>
+            </div>
+
+            <div class="tutorial-card">
+                <div class="tutorial-title">📋 Panduan Setup</div>
+                <div class="tutorial-step">Buka Google Sheets dan buat spreadsheet baru</div>
+                <div class="tutorial-step">Klik Extensions → Apps Script</div>
+                <div class="tutorial-step">Paste kode script (lihat dokumentasi)</div>
+                <div class="tutorial-step">Deploy sebagai Web App (Execute as: Me, Access: Anyone)</div>
+                <div class="tutorial-step">Copy URL Web App dan paste di bawah</div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-title">🔗 URL Web App Google Sheets</div>
+                <div class="input-group">
+                    <input type="url" class="form-input" id="sheetUrl" placeholder="https://script.google.com/macros/s/.../exec" value="">
+                    <button class="btn btn-primary" onclick="saveConnection()">Simpan</button>
+                </div>
+                <div class="connection-info">
+                    <strong>Status:</strong> <span id="connectionStatus">Belum terhubung</span><br>
+                    <small>Data akan disinkronkan otomatis saat online</small>
+                </div>
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="testConnection()" style="flex: 1;">Test Koneksi</button>
+                    <button class="btn btn-primary" onclick="syncData()" style="flex: 1;">Sync Sekarang</button>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-title">💾 Backup & Restore</div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="exportToCSV()" style="flex: 1;">Export CSV</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()" style="flex: 1;">Import CSV</button>
+                    <input type="file" id="importFile" accept=".csv" style="display: none;" onchange="importFromCSV(this)">
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <div class="settings-title">ℹ️ Tentang Aplikasi</div>
+                <p style="font-size: 14px; color: var(--gray-600); line-height: 1.6;">
+                    Aplikasi P3K Stock Manager terintegrasi dengan Google Sheets untuk menyinkronkan data stok kotak P3K secara real-time. 
+                    Fitur mencakup tracking expiry date, manajemen kuantitas, dan notifikasi stok menipis.
+                </p>
+                <div style="margin-top: 15px; padding: 10px; background: var(--gray-50); border-radius: var(--radius-sm); font-size: 12px; color: var(--gray-600);">
+                    <strong>Struktur Sheet:</strong><br>
+                    Kolom A: ID | B: Nama | C: Kategori | D: Jumlah | E: Expired | F: Notes | G: Last Update
+                </div>
+            </div>
+        </section>
+
+        <!-- Inventory Section -->
+        <section id="inventorySection" class="section active">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="section-icon">📦</span>
+                    Stok P3K
+                </h2>
+                <button class="add-btn" onclick="openAddModal()">+</button>
+            </div>
+
+            <div id="alertContainer"></div>
+            
+            <div id="inventoryList" class="inventory-grid">
+                <!-- Items will be rendered here -->
+            </div>
+
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-icon">📦</div>
+                <div class="empty-title">Stok kosong</div>
+                <p>Tambahkan item P3K atau hubungkan ke Google Sheets</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('inventory')">
+            <span class="nav-icon">📦</span>
+            <span>Stok</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('settings')">
+            <span class="nav-icon">⚙️</span>
+            <span>Pengaturan</span>
+        </button>
+    </nav>
+
+    <!-- Add/Edit Item Modal -->
+    <div id="itemModal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Tambah Item P3K</h3>
+                <button class="modal-close" onclick="closeItemModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="itemForm" onsubmit="saveItem(event)">
+                    <input type="hidden" id="itemId">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Nama Item *</label>
+                        <input type="text" class="form-input" id="itemName" placeholder="Contoh: Plester, Betadine, Perban" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Kategori *</label>
+                            <select class="form-select" id="itemCategory" required>
+                                <option value="Obat">Obat-obatan</option>
+                                <option value="Perban">Perban & Plester</option>
+                                <option value="Alat">Alat Medis</option>
+                                <option value="Antiseptik">Antiseptik</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Jumlah *</label>
+                            <input type="number" class="form-input" id="itemQuantity" min="0" value="1" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Tanggal Expired (opsional)</label>
+                        <input type="date" class="form-input" id="itemExpiry">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Catatan</label>
+                        <input type="text" class="form-input" id="itemNotes" placeholder="Contoh: Simpan di tempat kering">
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">Simpan ke Stok</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Install Prompt -->
+    <div id="installPrompt" class="install-prompt">
+        <button class="install-close" onclick="dismissInstall()">✕</button>
+        <div class="install-icon">🚑</div>
+        <div class="install-text">
+            <div class="install-title">Install P3K Stock</div>
+            <div class="install-desc">Akses offline dan sinkronasi otomatis</div>
+        </div>
+        <button class="install-btn" onclick="installApp()">Install</button>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // ==================== CONFIGURATION ====================
+        const CONFIG = {
+            // Metode 1: Google Apps Script Web App URL (Recommended)
+            GAS_URL: localStorage.getItem('p3k_gas_url') || '',
+            
+            // Metode 2: Sheet.Best API (Alternatif cepat)
+            SHEET_BEST_URL: localStorage.getItem('p3k_sheetbest_url') || '',
+            
+            // Sheet ID untuk reference
+            SHEET_ID: localStorage.getItem('p3k_sheet_id') || '',
+            
+            // Mode: 'gas' (Google Apps Script) atau 'sheetbest'
+            MODE: localStorage.getItem('p3k_mode') || 'gas'
+        };
+
+        // ==================== STATE MANAGEMENT ====================
+        let inventory = JSON.parse(localStorage.getItem('p3k_inventory')) || [];
+        let isOnline = navigator.onLine;
+        let syncQueue = JSON.parse(localStorage.getItem('p3k_sync_queue')) || [];
+        let deferredPrompt;
+
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved URL
+            document.getElementById('sheetUrl').value = CONFIG.GAS_URL;
+            updateConnectionStatus();
+            
+            // Render data
+            renderInventory();
+            updateStats();
+            
+            // Check online status
+            window.addEventListener('online', () => {
+                isOnline = true;
+                updateSyncStatus('online');
+                showToast('Koneksi online - Menyinkronkan...', 'success');
+                processSyncQueue();
+            });
+            
+            window.addEventListener('offline', () => {
+                isOnline = false;
+                updateSyncStatus('offline');
+                showToast('Mode offline - Perubahan disimpan lokal', 'warning');
+            });
+            
+            // Initial sync
+            if (isOnline && CONFIG.GAS_URL) {
+                syncData();
+            }
+            
+            // Auto sync every 5 minutes
+            setInterval(() => {
+                if (isOnline && CONFIG.GAS_URL) {
+                    syncData();
+                }
+            }, 300000);
+        });
+
+        // ==================== GOOGLE SHEETS INTEGRATION ====================
+        
+        // Test koneksi ke Google Sheets
+        async function testConnection() {
+            const url = document.getElementById('sheetUrl').value.trim();
+            if (!url) {
+                showToast('Masukkan URL Web App terlebih dahulu', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetch(url + '?action=test', {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showToast('Koneksi berhasil! ' + (data.message || ''), 'success');
+                    updateConnectionStatus('Tersambung');
+                } else {
+                    throw new Error('HTTP ' + response.status);
+                }
+            } catch (error) {
+                showToast('Koneksi gagal: ' + error.message, 'error');
+                updateConnectionStatus('Gagal terhubung');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Simpan koneksi
+        function saveConnection() {
+            const url = document.getElementById('sheetUrl').value.trim();
+            if (!url) {
+                showToast('URL tidak boleh kosong', 'error');
+                return;
+            }
+            
+            CONFIG.GAS_URL = url;
+            localStorage.setItem('p3k_gas_url', url);
+            localStorage.setItem('p3k_mode', 'gas');
+            
+            showToast('Pengaturan disimpan', 'success');
+            testConnection();
+        }
+
+        // Sinkronisasi data
+        async function syncData() {
+            if (!CONFIG.GAS_URL) {
+                showToast('URL Google Sheets belum dikonfigurasi', 'warning');
+                return;
+            }
+            
+            if (!isOnline) {
+                showToast('Tidak ada koneksi internet', 'warning');
+                return;
+            }
+            
+            showLoading(true);
+            updateSyncStatus('syncing');
+            
+            try {
+                // 1. Push local changes first
+                await processSyncQueue();
+                
+                // 2. Fetch latest data
+                const response = await fetch(CONFIG.GAS_URL + '?action=getAll', {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                
+                const data = await response.json();
+                
+                if (data.success && Array.isArray(data.data)) {
+                    // Merge dengan data lokal (prioritaskan data server)
+                    inventory = mergeData(inventory, data.data);
+                    saveLocalInventory();
+                    renderInventory();
+                    updateStats();
+                    updateSyncStatus('online');
+                    showToast('Sinkronisasi berhasil!', 'success');
+                } else {
+                    throw new Error(data.message || 'Format data tidak valid');
+                }
+            } catch (error) {
+                console.error('Sync error:', error);
+                updateSyncStatus('offline');
+                showToast('Gagal sinkron: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Merge data lokal dan server (server priority)
+        function mergeData(local, server) {
+            const merged = [...server];
+            const serverIds = new Set(server.map(item => item.id));
+            
+            // Tambahkan item lokal yang belum ada di server (pending sync)
+            local.forEach(item => {
+                if (!serverIds.has(item.id) && item._pending) {
+                    merged.push(item);
+                }
+            });
+            
+            return merged;
+        }
+
+        // Proses antrian sinkronisasi
+        async function processSyncQueue() {
+            if (syncQueue.length === 0) return;
+            
+            const queue = [...syncQueue];
+            syncQueue = [];
+            saveSyncQueue();
+            
+            for (const action of queue) {
+                try {
+                    await executeRemoteAction(action);
+                } catch (error) {
+                    // Kembalikan ke antrian jika gagal
+                    syncQueue.push(action);
+                    saveSyncQueue();
+                    break;
+                }
+            }
+        }
+
+        // Eksekusi aksi ke server
+        async function executeRemoteAction(action) {
+            const response = await fetch(CONFIG.GAS_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(action)
+            });
+            
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const data = await response.json();
+            if (!data.success) throw new Error(data.message);
+            
+            return data;
+        }
+
+        // Tambahkan ke antrian sinkronisasi
+        function queueSyncAction(action) {
+            syncQueue.push({
+                ...action,
+                timestamp: new Date().toISOString()
+            });
+            saveSyncQueue();
+            
+            if (isOnline) {
+                processSyncQueue();
+            }
+        }
+
+        // ==================== INVENTORY MANAGEMENT ====================
+        
+        function saveLocalInventory() {
+            localStorage.setItem('p3k_inventory', JSON.stringify(inventory));
+        }
+
+        function saveSyncQueue() {
+            localStorage.setItem('p3k_sync_queue', JSON.stringify(syncQueue));
+        }
+
+        function renderInventory() {
+            const list = document.getElementById('inventoryList');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (inventory.length === 0) {
+                list.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            // Sort: Expired first, then by name
+            const sorted = [...inventory].sort((a, b) => {
+                const statusA = getExpiryStatus(a.expiry).sortOrder;
+                const statusB = getExpiryStatus(b.expiry).sortOrder;
+                if (statusA !== statusB) return statusA - statusB;
+                return a.name.localeCompare(b.name);
+            });
+            
+            list.innerHTML = sorted.map(item => {
+                const status = getExpiryStatus(item.expiry);
+                const pendingBadge = item._pending ? '<span style="background: var(--warning); color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-left: 8px;">SYNC</span>' : '';
+                
+                return `
+                    <div class="item-card ${status.class}" data-id="${item.id}">
+                        <div class="item-header">
+                            <div class="item-info">
+                                <div class="item-name">
+                                    ${getCategoryIcon(item.category)} ${escapeHtml(item.name)} ${pendingBadge}
+                                </div>
+                                <span class="item-category">${item.category}</span>
+                                ${item.notes ? `<div style="margin-top: 6px; font-size: 13px; color: var(--gray-600);">${escapeHtml(item.notes)}</div>` : ''}
+                            </div>
+                            <div class="item-quantity">
+                                <button class="qty-btn" onclick="updateQuantity('${item.id}', -1)">−</button>
+                                <span class="qty-value">${item.quantity}</span>
+                                <button class="qty-btn" onclick="updateQuantity('${item.id}', 1)">+</button>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="expiry-badge ${status.class}">
+                                <span>${status.icon}</span>
+                                <span>${status.text}</span>
+                            </div>
+                            <div class="item-actions">
+                                <button class="icon-btn sync" onclick="syncItem('${item.id}')" title="Sync sekarang">🔄</button>
+                                <button class="icon-btn" onclick="editItem('${item.id}')" title="Edit">✏️</button>
+                                <button class="icon-btn delete" onclick="deleteItem('${item.id}')" title="Hapus">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getExpiryStatus(expiry) {
+            if (!expiry) return { 
+                class: 'good', 
+                text: 'Tidak ada expired', 
+                icon: '♾️',
+                sortOrder: 3
+            };
+            
+            const now = new Date();
+            const exp = new Date(expiry);
+            const diff = exp - now;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (days < 0) return { 
+                class: 'expired', 
+                text: `Expired ${Math.abs(days)} hari lalu`, 
+                icon: '⚠️',
+                sortOrder: 1
+            };
+            if (days < 30) return { 
+                class: 'expiring', 
+                text: `Expired dalam ${days} hari`, 
+                icon: '⏰',
+                sortOrder: 2
+            };
+            return { 
+                class: 'good', 
+                text: `Expired ${formatDate(expiry)}`, 
+                icon: '✓',
+                sortOrder: 3
+            };
+        }
+
+        function getCategoryIcon(category) {
+            const icons = {
+                'Obat': '💊',
+                'Perban': '🩹',
+                'Alat': '🔧',
+                'Antiseptik': '🧼',
+                'Lainnya': '📦'
+            };
+            return icons[category] || '📦';
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ==================== CRUD OPERATIONS ====================
+        
+        let editingId = null;
+
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = 'Tambah Item P3K';
+            document.getElementById('itemForm').reset();
+            document.getElementById('itemId').value = '';
+            document.getElementById('itemModal').classList.add('active');
+        }
+
+        function editItem(id) {
+            const item = inventory.find(i => i.id === id);
+            if (!item) return;
+            
+            editingId = id;
+            document.getElementById('modalTitle').textContent = 'Edit Item P3K';
+            document.getElementById('itemId').value = item.id;
+            document.getElementById('itemName').value = item.name;
+            document.getElementById('itemCategory').value = item.category;
+            document.getElementById('itemQuantity').value = item.quantity;
+            document.getElementById('itemExpiry').value = item.expiry || '';
+            document.getElementById('itemNotes').value = item.notes || '';
+            document.getElementById('itemModal').classList.add('active');
+        }
+
+        function closeItemModal() {
+            document.getElementById('itemModal').classList.remove('active');
+            editingId = null;
+        }
+
+        function closeModal(e) {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeItemModal();
+            }
+        }
+
+        function saveItem(e) {
+            e.preventDefault();
+            
+            const itemData = {
+                id: editingId || 'p3k_' + Date.now(),
+                name: document.getElementById('itemName').value,
+                category: document.getElementById('itemCategory').value,
+                quantity: parseInt(document.getElementById('itemQuantity').value),
+                expiry: document.getElementById('itemExpiry').value,
+                notes: document.getElementById('itemNotes').value,
+                lastUpdate: new Date().toISOString(),
+                _pending: true
+            };
+            
+            if (editingId) {
+                // Update existing
+                const index = inventory.findIndex(i => i.id === editingId);
+                if (index !== -1) {
+                    inventory[index] = { ...inventory[index], ...itemData };
+                }
+                queueSyncAction({ action: 'update', data: itemData });
+                showToast('Item diperbarui', 'success');
+            } else {
+                // Add new
+                inventory.push(itemData);
+                queueSyncAction({ action: 'add', data: itemData });
+                showToast('Item ditambahkan', 'success');
+            }
+            
+            saveLocalInventory();
+            renderInventory();
+            updateStats();
+            closeItemModal();
+            
+            // Sync immediately if online
+            if (isOnline) {
+                processSyncQueue();
+            }
+        }
+
+        function updateQuantity(id, change) {
+            const item = inventory.find(i => i.id === id);
+            if (!item) return;
+            
+            const newQty = item.quantity + change;
+            if (newQty < 0) return;
+            
+            item.quantity = newQty;
+            item.lastUpdate = new Date().toISOString();
+            item._pending = true;
+            
+            saveLocalInventory();
+            renderInventory();
+            updateStats();
+            
+            queueSyncAction({ 
+                action: 'update', 
+                data: {
+                    id: item.id,
+                    quantity: item.quantity,
+                    lastUpdate: item.lastUpdate
+                }
+            });
+            
+            if (isOnline) processSyncQueue();
+        }
+
+        function deleteItem(id) {
+            if (!confirm('Hapus item ini?')) return;
+            
+            inventory = inventory.filter(i => i.id !== id);
+            saveLocalInventory();
+            renderInventory();
+            updateStats();
+            
+            queueSyncAction({ action: 'delete', id: id });
+            showToast('Item dihapus', 'success');
+            
+            if (isOnline) processSyncQueue();
+        }
+
+        function syncItem(id) {
+            const item = inventory.find(i => i.id === id);
+            if (!item) return;
+            
+            item._pending = true;
+            queueSyncAction({ action: 'update', data: item });
+            
+            if (isOnline) {
+                processSyncQueue();
+                showToast('Sinkronisasi dimulai...', 'success');
+            } else {
+                showToast('Mode offline - disimpan dalam antrian', 'warning');
+            }
+        }
+
+        // ==================== STATS & UI ====================
+        
+        function updateStats() {
+            const now = new Date();
+            const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+            
+            let expiring = 0;
+            let expired = 0;
+            
+            inventory.forEach(item => {
+                if (item.expiry) {
+                    const expDate = new Date(item.expiry);
+                    const diff = expDate - now;
+                    if (diff < 0) expired++;
+                    else if (diff < thirtyDays) expiring++;
+                }
+            });
+            
+            document.getElementById('totalItems').textContent = inventory.length;
+            document.getElementById('expiringItems').textContent = expiring;
+            document.getElementById('expiredItems').textContent = expired;
+            
+            // Alert banner
+            const alertContainer = document.getElementById('alertContainer');
+            if (expired > 0 || expiring > 0) {
+                alertContainer.innerHTML = `
+                    <div class="alert-banner">
+                        <span class="alert-icon">⚠️</span>
+                        <div class="alert-content">
+                            <div class="alert-title">Perhatian!</div>
+                            <div class="alert-text">${expired} expired, ${expiring} akan expired segera. Periksa stok!</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                alertContainer.innerHTML = '';
+            }
+        }
+
+        function updateSyncStatus(status) {
+            const el = document.getElementById('syncStatus');
+            const icon = document.getElementById('syncIcon');
+            const text = document.getElementById('syncText');
+            
+            el.className = 'sync-status ' + status;
+            
+            switch(status) {
+                case 'online':
+                    icon.textContent = '✓';
+                    text.textContent = 'Online';
+                    break;
+                case 'offline':
+                    icon.textContent = '⚠️';
+                    text.textContent = 'Offline';
+                    break;
+                case 'syncing':
+                    icon.textContent = '🔄';
+                    text.textContent = 'Sync...';
+                    break;
+            }
+        }
+
+        function updateConnectionStatus(status) {
+            const el = document.getElementById('connectionStatus');
+            if (status) {
+                el.textContent = status;
+                el.style.color = status === 'Tersambung' ? 'var(--secondary)' : 'var(--danger)';
+            } else {
+                if (CONFIG.GAS_URL) {
+                    el.textContent = 'Menunggu test koneksi...';
+                    el.style.color = 'var(--gray-600)';
+                } else {
+                    el.textContent = 'Belum terhubung';
+                    el.style.color = 'var(--gray-600)';
+                }
+            }
+        }
+
+        // ==================== NAVIGATION ====================
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById(tab + 'Section').classList.add('active');
+            event.target.closest('.nav-item').classList.add('active');
+        }
+
+        // ==================== UTILITIES ====================
+        
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function showLoading(show) {
+            const el = document.getElementById('loadingOverlay');
+            if (show) el.classList.add('active');
+            else el.classList.remove('active');
+        }
+
+        // ==================== BACKUP & RESTORE ====================
+        
+        function exportToCSV() {
+            if (inventory.length === 0) {
+                showToast('Tidak ada data untuk diexport', 'warning');
+                return;
+            }
+            
+            const headers = ['ID', 'Nama', 'Kategori', 'Jumlah', 'Expired', 'Catatan', 'Last Update'];
+            const rows = inventory.map(item => [
+                item.id,
+                `"${item.name}"`,
+                item.category,
+                item.quantity,
+                item.expiry || '',
+                `"${item.notes || ''}"`,
+                item.lastUpdate
+            ]);
+            
+            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `p3k_backup_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            
+            showToast('Backup berhasil diunduh', 'success');
+        }
+
+        function importFromCSV(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n').slice(1); // Skip header
+                    
+                    const newItems = lines.filter(line => line.trim()).map(line => {
+                        const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+                        return {
+                            id: cols[0] || 'p3k_' + Date.now(),
+                            name: cols[1],
+                            category: cols[2],
+                            quantity: parseInt(cols[3]) || 0,
+                            expiry: cols[4] || '',
+                            notes: cols[5],
+                            lastUpdate: cols[6] || new Date().toISOString(),
+                            _pending: true
+                        };
+                    });
+                    
+                    if (confirm(`Import ${newItems.length} item? Data existing akan ditimpa jika ID sama.`)) {
+                        // Merge: keep existing items not in import, add/update imported
+                        const importIds = new Set(newItems.map(i => i.id));
+                        inventory = inventory.filter(i => !importIds.has(i.id));
+                        inventory.push(...newItems);
+                        
+                        saveLocalInventory();
+                        renderInventory();
+                        updateStats();
+                        
+                        // Queue all for sync
+                        newItems.forEach(item => {
+                            queueSyncAction({ action: 'add', data: item });
+                        });
+                        
+                        showToast('Import berhasil!', 'success');
+                    }
+                } catch (error) {
+                    showToast('Error import: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        // ==================== PWA INSTALLATION ====================
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            setTimeout(() => {
+                document.getElementById('installPrompt').classList.add('show');
+            }, 2000);
+        });
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showToast('Aplikasi diinstall!', 'success');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('installPrompt').classList.remove('show');
+                });
+            }
+        }
+
+        function dismissInstall() {
+            document.getElementById('installPrompt').classList.remove('show');
+        }
+
+        // ==================== SERVICE WORKER ====================
+        
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'p3k-v1';
+                const urlsToCache = ['/'];
+                
+                self.addEventListener('install', e => {
+                    e.waitUntil(
+                        caches.open(CACHE_NAME)
+                            .then(cache => cache.addAll(urlsToCache))
+                    );
+                    self.skipWaiting();
+                });
+                
+                self.addEventListener('fetch', e => {
+                    e.respondWith(
+                        caches.match(e.request)
+                            .then(response => {
+                                if (response) return response;
+                                return fetch(e.request).catch(() => {
+                                    return new Response('Offline mode');
+                                });
+                            })
+                    );
+                });
+            `;
+            
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            
+            navigator.serviceWorker.register(swUrl)
+                .then(() => console.log('SW registered'))
+                .catch(() => console.log('SW registration failed'));
+        }
+    </script>
+</body>
+</html>
